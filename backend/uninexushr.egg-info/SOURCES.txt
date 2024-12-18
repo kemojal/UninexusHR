@@ -1,0 +1,6 @@
+setup.py
+uninexushr.egg-info/PKG-INFO
+uninexushr.egg-info/SOURCES.txt
+uninexushr.egg-info/dependency_links.txt
+uninexushr.egg-info/requires.txt
+uninexushr.egg-info/top_level.txt

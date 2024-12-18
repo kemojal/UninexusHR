@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+        .footer {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>New Join Request</h2>
+        <p>Hello,</p>
+        <p>{{ user_name }} has requested to join {{ organization_name }}.</p>
+        <p>You can review this request in your organization's dashboard:</p>
+        <a href="{{ dashboard_link }}" class="button">Review Request</a>
+        <div class="footer">
+            <p>Best regards,<br>The UninexusHR Team</p>
+        </div>
+    </div>
+</body>
+</html>

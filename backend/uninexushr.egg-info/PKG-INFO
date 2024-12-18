@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: uninexushr
+Version: 0.1.0
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: sqlalchemy
+Requires-Dist: psycopg2-binary
+Requires-Dist: alembic
+Requires-Dist: python-jose[cryptography]
+Requires-Dist: passlib[bcrypt]
+Requires-Dist: python-dotenv
+Requires-Dist: pydantic-settings
+Requires-Dist: pydantic[email]
