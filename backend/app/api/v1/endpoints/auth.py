@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app import crud
+from app.crud import crud_user
 from app.models.user import User
 from app.schemas.token import Token
 from app.schemas.user import User as UserSchema, UserCreate
@@ -34,12 +34,12 @@ def login(
     """
     Login with email and password, get an access token for future requests
     """
-    user = crud.user.authenticate(
+    user = crud_user.authenticate(
         db, email=login_data.email, password=login_data.password
     )
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
-    elif not crud.user.is_active(user):
+    elif not crud_user.is_active(user):
         raise HTTPException(status_code=400, detail="Inactive user")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
@@ -58,13 +58,13 @@ def register(
     """
     Create new user without the need to be logged in.
     """
-    user = crud.user.get_by_email(db, email=user_in.email)
+    user = crud_user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this email already exists in the system",
         )
-    user = crud.user.create(db, obj_in=user_in)
+    user = crud_user.create(db, obj_in=user_in)
     return user
 
 @router.post("/password-recovery/{email}", response_model=Msg)
@@ -72,7 +72,7 @@ def recover_password(email: str, db: Session = Depends(deps.get_db)) -> Any:
     """
     Password Recovery
     """
-    user = crud.user.get_by_email(db, email=email)
+    user = crud_user.get_by_email(db, email=email)
 
     if not user:
         raise HTTPException(
@@ -97,13 +97,13 @@ def reset_password(
     email = verify_password_reset_token(token)
     if not email:
         raise HTTPException(status_code=400, detail="Invalid token")
-    user = crud.user.get_by_email(db, email=email)
+    user = crud_user.get_by_email(db, email=email)
     if not user:
         raise HTTPException(
             status_code=404,
             detail="The user with this email does not exist in the system",
         )
-    elif not crud.user.is_active(user):
+    elif not crud_user.is_active(user):
         raise HTTPException(status_code=400, detail="Inactive user")
     hashed_password = get_password_hash(new_password)
     user.hashed_password = hashed_password

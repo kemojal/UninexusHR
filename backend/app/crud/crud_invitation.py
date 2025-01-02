@@ -25,7 +25,7 @@ class CRUDInvitation(CRUDBase[Invitation, InvitationCreate, InvitationUpdate]):
             invited_by_id=invited_by_id,
             token=token,
             expires_at=expires_at,
-            is_accepted=False
+            status="pending"
         )
         db.add(db_obj)
         db.commit()
@@ -58,22 +58,36 @@ class CRUDInvitation(CRUDBase[Invitation, InvitationCreate, InvitationUpdate]):
             .first()
         )
     
-    def get_by_email(
+    def get_pending_by_email(
         self, 
         db: Session, 
-        email: str,
-        organization_id: int
+        organization_id: int,
+        email: str
     ) -> Optional[Invitation]:
+        """Get pending invitation by email for an organization"""
         return (
             db.query(self.model)
             .filter(
                 Invitation.email == email,
                 Invitation.organization_id == organization_id,
-                Invitation.is_accepted == False,
+                Invitation.status == "pending",
                 Invitation.expires_at > datetime.utcnow()
             )
             .first()
         )
+    
+    def get_multi_by_org(self, db: Session, *, organization_id: int) -> List[Invitation]:
+        invitations = (
+            db.query(self.model)
+            .filter(self.model.organization_id == organization_id)
+            .all()
+        )
+        
+        # Add is_accepted property to each invitation
+        for invitation in invitations:
+            invitation.is_accepted = invitation.status == "accepted"
+            
+        return invitations
     
     def refresh(
         self,
@@ -89,4 +103,4 @@ class CRUDInvitation(CRUDBase[Invitation, InvitationCreate, InvitationUpdate]):
         db.refresh(db_obj)
         return db_obj
 
-invitation = CRUDInvitation(Invitation)
+crud_invitation = CRUDInvitation(Invitation)

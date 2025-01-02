@@ -25,8 +25,8 @@ def read_organizations(
     If the user is superuser, return all organizations.
     If the user is not superuser, return only organizations they belong to.
     """
-    if crud.user.is_superuser(current_user):
-        organizations = crud.organization.get_multi(db, skip=skip, limit=limit)
+    if crud.crud_user.is_superuser(current_user):
+        organizations = crud.crud_organization.get_multi(db, skip=skip, limit=limit)
     else:
         organizations = current_user.organizations
     return organizations
@@ -41,35 +41,20 @@ def create_organization(
     """
     Create new organization and set current user as admin.
     """
+    # Check if the organization already exists
+    existing_organization = crud.crud_organization.get_by_name(db=db, name=organization_in.name)
+    if existing_organization:
+        raise HTTPException(status_code=400, detail="Organization with this name already exists.")
+
     # Create the organization
-    organization = crud.organization.create(db=db, obj_in=organization_in)
+    organization = crud.crud_organization.create(db=db, obj_in=organization_in)
     
-    # Create admin role with all permissions
-    admin_role = crud.role.create(
-        db=db,
-        obj_in=RoleCreate(
-            name="Admin",
-            description="Organization administrator with full access",
-            permissions=[
-                "manage_roles",
-                "view_roles",
-                "manage_members",
-                "view_members",
-                "manage_organization",
-                "view_organization",
-                "manage_permissions",
-                "view_permissions"
-            ]
-        ),
-        organization_id=organization.id
-    )
-    
-    # Add the current user as an admin of the organization
-    crud.organization.add_user_with_role(
+    # Add the user to the user_roles table
+    user_role = crud.crud_organization.add_user_with_role(
         db=db,
         org_id=organization.id,
         user_id=current_user.id,
-        role_id=admin_role.id
+        role="admin"  # Use role name instead of ID
     )
     
     return organization
@@ -84,10 +69,10 @@ def read_organization(
     """
     Get organization by ID.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
-    if not crud.user.is_superuser(current_user) and organization not in current_user.organizations:
+    if not crud.crud_user.is_superuser(current_user) and organization not in current_user.organizations:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return organization
 
@@ -100,15 +85,17 @@ def update_organization(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Update an organization.
+    Update organization.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
-    if not crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
+    if not crud.crud_organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
         raise HTTPException(status_code=403, detail="Only organization admins can update")
-    organization = crud.organization.update(
-        db=db, db_obj=organization, obj_in=organization_in
+    organization = crud.crud_organization.update(
+        db=db,
+        db_obj=organization,
+        obj_in=organization_in
     )
     return organization
 
@@ -123,21 +110,21 @@ async def create_invitation(
     """
     Create an invitation to join an organization.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
     
     # Check if current user is admin of the organization
-    if not crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
+    if not crud.crud_organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
         raise HTTPException(status_code=403, detail="Only organization admins can send invites")
     
     # Check if role exists
-    role = crud.role.get(db=db, id=invitation_in.role_id)
+    role = crud.crud_role.get(db=db, id=invitation_in.role_id)
     if not role or role.organization_id != organization_id:
         raise HTTPException(status_code=404, detail="Role not found in this organization")
     
     # Create invitation
-    invitation = crud.invitation.create(
+    invitation = crud.crud_invitation.create(
         db=db,
         obj_in=invitation_in,
         organization_id=organization_id,
@@ -168,14 +155,14 @@ def read_invitations(
     """
     Get all invitations for an organization.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
     
-    if not crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
+    if not crud.crud_organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
         raise HTTPException(status_code=403, detail="Only organization admins can view invites")
     
-    return crud.invitation.get_by_organization(db=db, organization_id=organization_id)
+    return crud.crud_invitation.get_by_organization(db=db, organization_id=organization_id)
 
 @router.delete("/{organization_id}/invitations/{invitation_id}", response_model=Any)
 def cancel_invitation(
@@ -188,18 +175,18 @@ def cancel_invitation(
     """
     Cancel an invitation.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
     
-    if not crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
+    if not crud.crud_organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
         raise HTTPException(status_code=403, detail="Only organization admins can cancel invites")
     
-    invitation = crud.invitation.get(db=db, id=invitation_id)
+    invitation = crud.crud_invitation.get(db=db, id=invitation_id)
     if not invitation or invitation.organization_id != organization_id:
         raise HTTPException(status_code=404, detail="Invitation not found")
     
-    crud.invitation.remove(db=db, id=invitation_id)
+    crud.crud_invitation.remove(db=db, id=invitation_id)
     return {"status": "success", "message": "Invitation cancelled"}
 
 @router.post("/{organization_id}/invitations/{invitation_id}/resend", response_model=Any)
@@ -213,19 +200,19 @@ async def resend_invitation(
     """
     Resend an invitation email.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
     
-    if not crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
+    if not crud.crud_organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
         raise HTTPException(status_code=403, detail="Only organization admins can resend invites")
     
-    invitation = crud.invitation.get(db=db, id=invitation_id)
+    invitation = crud.crud_invitation.get(db=db, id=invitation_id)
     if not invitation or invitation.organization_id != organization_id:
         raise HTTPException(status_code=404, detail="Invitation not found")
     
     # Refresh invitation token and expiry
-    invitation = crud.invitation.refresh(db=db, db_obj=invitation)
+    invitation = crud.crud_invitation.refresh(db=db, db_obj=invitation)
     
     # Resend invitation email
     try:
@@ -253,12 +240,12 @@ def invite_to_organization(
     """
     Invite a user to join an organization.
     """
-    organization = crud.organization.get(db=db, id=organization_id)
+    organization = crud.crud_organization.get(db=db, id=organization_id)
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
     
     # Check if current user is admin of the organization
-    if not crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
+    if not crud.crud_organization.is_admin(db, org_id=organization_id, user_id=current_user.id):
         raise HTTPException(status_code=403, detail="Only organization admins can send invites")
     
     # TODO: Implement invitation logic (send email, create invitation record, etc.)

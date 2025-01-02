@@ -1,174 +1,129 @@
+from datetime import datetime, timedelta
+from typing import List
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import List
-from datetime import datetime, timedelta
 
-from app.core.deps import get_db, get_current_user
-from app.core.security import create_invitation_token
-from app.models.invitation import Invitation
-from app.models.user import User
-from app.schemas.invitation import InvitationCreate, InvitationResponse, InvitationUpdate
+from app import schemas, models, crud
+from app.api import deps
+from app.core.config import settings
 from app.utils.email import send_invitation_email
 
 router = APIRouter()
 
-@router.post("/{org_id}/invitations", response_model=InvitationResponse)
+@router.post("/{organization_id}/invitations", response_model=schemas.InvitationResponse)
 async def create_invitation(
-    org_id: int,
-    invitation: InvitationCreate,
+    organization_id: int,
+    invitation: schemas.InvitationCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
 ):
-    """Create a new invitation and send invitation email"""
-    # Check if user has permission to invite
-    if not current_user.has_permission(org_id, "invite_members"):
+    # Check if user has permission to invite members
+    if not crud.organization.is_user_admin(db, organization_id, current_user.id):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    # Check if invitation already exists
-    existing_invitation = db.query(Invitation).filter(
-        Invitation.email == invitation.email,
-        Invitation.organization_id == org_id,
-        Invitation.is_accepted == False,
-        Invitation.expires_at > datetime.utcnow()
-    ).first()
-    
+    # Check if user is already a member
+    if crud.member.get_by_email(db, organization_id=organization_id, email=invitation.email):
+        raise HTTPException(status_code=400, detail="User is already a member")
+
+    # Check if there's a pending invitation
+    existing_invitation = crud.invitation.get_pending_by_email(
+        db, organization_id=organization_id, email=invitation.email
+    )
     if existing_invitation:
-        raise HTTPException(
-            status_code=400,
-            detail="An active invitation already exists for this email"
-        )
+        raise HTTPException(status_code=400, detail="Invitation already sent")
 
     # Create invitation
-    db_invitation = Invitation(
+    token = str(uuid4())
+    expires_at = datetime.utcnow() + timedelta(days=7)
+    
+    db_invitation = models.Invitation(
         email=invitation.email,
-        organization_id=org_id,
+        organization_id=organization_id,
         invited_by_id=current_user.id,
         role_id=invitation.role_id,
-        expires_at=datetime.utcnow() + timedelta(days=7)
+        token=token,
+        expires_at=expires_at,
+        status="pending"
     )
     db.add(db_invitation)
     db.commit()
     db.refresh(db_invitation)
 
-    # Generate invitation token
-    token = create_invitation_token(db_invitation.id)
-
-    # Send invitation email in background
+    # Send invitation email
+    invitation_url = f"{settings.FRONTEND_URL}/join?token={token}"
     background_tasks.add_task(
         send_invitation_email,
-        invitation.email,
-        current_user.full_name,
-        org_id,
-        token
+        email_to=invitation.email,
+        invitation_url=invitation_url,
+        organization_name=db_invitation.organization.name
     )
 
     return db_invitation
 
-@router.get("/{org_id}/invitations", response_model=List[InvitationResponse])
-async def list_invitations(
-    org_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+@router.get("/{organization_id}/invitations", response_model=List[schemas.InvitationResponse])
+def list_invitations(
+    organization_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
 ):
-    """List all invitations for an organization"""
-    if not current_user.has_permission(org_id, "view_invitations"):
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    # Debug information
+    print(f"Checking permissions for user {current_user.id} in organization {organization_id}")
+    print(f"User roles: {[role.name for role in current_user.roles]}")
+    
+    # Check if user has permission to view invitations
+    is_admin = crud.organization.is_admin(db, org_id=organization_id, user_id=current_user.id)
+    print(f"Is admin check result: {is_admin}")
+    
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only organization admins can view invites")
 
-    invitations = db.query(Invitation).filter(
-        Invitation.organization_id == org_id
-    ).all()
+    return crud.invitation.get_multi_by_org(db, organization_id=organization_id)
 
-    return invitations
-
-@router.put("/{org_id}/invitations/{invitation_id}", response_model=InvitationResponse)
-async def update_invitation(
-    org_id: int,
+@router.delete("/{organization_id}/invitations/{invitation_id}")
+def delete_invitation(
+    organization_id: int,
     invitation_id: int,
-    invitation_update: InvitationUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
 ):
-    """Update invitation status"""
-    if not current_user.has_permission(org_id, "manage_invitations"):
+    # Check if user has permission to delete invitations
+    if not crud.organization.is_user_admin(db, organization_id, current_user.id):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    invitation = db.query(Invitation).filter(
-        Invitation.id == invitation_id,
-        Invitation.organization_id == org_id
-    ).first()
-
-    if not invitation:
+    invitation = crud.invitation.get(db, id=invitation_id)
+    if not invitation or invitation.organization_id != organization_id:
         raise HTTPException(status_code=404, detail="Invitation not found")
 
-    for field, value in invitation_update.dict(exclude_unset=True).items():
-        setattr(invitation, field, value)
-
-    db.commit()
-    db.refresh(invitation)
-
-    return invitation
-
-@router.delete("/{org_id}/invitations/{invitation_id}")
-async def delete_invitation(
-    org_id: int,
-    invitation_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Delete an invitation"""
-    if not current_user.has_permission(org_id, "manage_invitations"):
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-
-    invitation = db.query(Invitation).filter(
-        Invitation.id == invitation_id,
-        Invitation.organization_id == org_id
-    ).first()
-
-    if not invitation:
-        raise HTTPException(status_code=404, detail="Invitation not found")
-
-    db.delete(invitation)
-    db.commit()
-
+    crud.invitation.remove(db, id=invitation_id)
     return {"message": "Invitation deleted successfully"}
 
 @router.post("/accept-invitation/{token}")
 async def accept_invitation(
     token: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user)
 ):
     """Accept an invitation using the invitation token"""
-    try:
-        invitation_id = verify_invitation_token(token)
-    except:
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
-
-    invitation = db.query(Invitation).filter(
-        Invitation.id == invitation_id,
-        Invitation.is_accepted == False,
-        Invitation.expires_at > datetime.utcnow()
-    ).first()
-
-    if not invitation:
+    invitation = crud.invitation.get_by_token(db, token=token)
+    if not invitation or invitation.status != "pending" or invitation.expires_at < datetime.utcnow():
         raise HTTPException(status_code=404, detail="Invalid or expired invitation")
 
     if invitation.email != current_user.email:
-        raise HTTPException(status_code=403, detail="This invitation is for a different email")
+        raise HTTPException(status_code=403, detail="This invitation is for a different email address")
 
     # Add user to organization with specified role
-    member = OrganizationMember(
-        user_id=current_user.id,
+    crud.member.create(
+        db,
         organization_id=invitation.organization_id,
+        user_id=current_user.id,
         role_id=invitation.role_id
     )
-    db.add(member)
 
     # Mark invitation as accepted
-    invitation.is_accepted = True
-    invitation.accepted_at = datetime.utcnow()
-
+    invitation.status = "accepted"
     db.commit()
 
     return {"message": "Invitation accepted successfully"}

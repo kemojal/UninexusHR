@@ -10,6 +10,7 @@ class RoleBase(BaseModel):
 
 class RoleCreate(RoleBase):
     permission_ids: Optional[List[int]] = None
+    organization_id: int
 
 class RoleUpdate(BaseModel):
     name: Optional[str] = None

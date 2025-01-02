@@ -1,0 +1,119 @@
+2024-12-18 13:09:10,400 - app.main - INFO - Application startup complete
+2024-12-18 13:10:02,389 - app.utils.email - INFO - Preparing to send invitation email to fesim20803@owube.com for Aeomatrix
+2024-12-18 13:10:02,390 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:10:02,553 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:10:02,826 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:10:03,217 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to fesim20803@owube.com
+2024-12-18 13:10:04,451 - app.utils.email - INFO - Email sent successfully
+2024-12-18 13:10:51,619 - app.utils.email - INFO - Preparing to send invitation email to kevin.sunarto@hannlync.com for Aeomatrix
+2024-12-18 13:10:51,620 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:10:52,254 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:10:52,524 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:10:52,962 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to kevin.sunarto@hannlync.com
+2024-12-18 13:10:54,051 - app.utils.email - INFO - Email sent successfully
+2024-12-18 13:14:09,027 - app.main - INFO - Application startup complete
+2024-12-18 13:14:24,416 - app.utils.email - INFO - Preparing to send invitation email to cajar48584@evusd.com for Aeomatrix
+2024-12-18 13:14:24,416 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:14:25,241 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:14:25,505 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:14:25,951 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to cajar48584@evusd.com
+2024-12-18 13:14:27,202 - app.utils.email - INFO - Email sent successfully
+2024-12-18 13:15:31,294 - app.utils.email - INFO - Preparing to send invitation email to kevin.sunarto@hannlync.com for Aeomatrix
+2024-12-18 13:15:31,294 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:15:31,895 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:15:32,154 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:15:32,527 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to kevin.sunarto@hannlync.com
+2024-12-18 13:15:33,665 - app.utils.email - INFO - Email sent successfully
+2024-12-18 13:27:49,557 - app.main - INFO - Application startup complete
+2024-12-18 13:31:06,140 - app.main - INFO - Application startup complete
+2024-12-18 13:32:03,171 - app.main - INFO - Application startup complete
+2024-12-18 13:32:28,443 - app.main - INFO - Application startup complete
+2024-12-18 13:33:07,741 - app.utils.email - INFO - Preparing to send invitation email to fesim20803@owube.com for Aeomatrix
+2024-12-18 13:33:07,742 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:33:07,901 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:33:08,167 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:33:08,651 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to fesim20803@owube.com
+2024-12-18 13:33:09,825 - app.utils.email - INFO - Email sent successfully
+2024-12-18 13:33:32,563 - app.utils.email - INFO - Preparing to send invitation email to cajar48584@evusd.com for Aeomatrix
+2024-12-18 13:33:32,563 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:33:32,705 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:33:33,029 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:33:33,409 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to cajar48584@evusd.com
+2024-12-18 13:33:34,601 - app.utils.email - INFO - Email sent successfully
+2024-12-18 13:49:17,570 - app.utils.email - INFO - Preparing to send invitation email to cajar48584@evusd.com for Aeomatrix
+2024-12-18 13:49:17,571 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2024-12-18 13:49:18,187 - app.utils.email - INFO - Starting TLS
+2024-12-18 13:49:18,455 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2024-12-18 13:49:18,850 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to cajar48584@evusd.com
+2024-12-18 13:49:19,993 - app.utils.email - INFO - Email sent successfully
+2024-12-18 14:28:52,079 - app.main - INFO - Application startup complete
+2024-12-18 14:29:07,335 - app.main - INFO - Application startup complete
+2024-12-18 14:51:49,092 - app.main - INFO - Application startup complete
+2024-12-18 14:53:23,189 - app.main - INFO - Application startup complete
+2024-12-18 14:53:30,953 - app.main - INFO - Application startup complete
+2024-12-18 14:53:46,163 - app.main - INFO - Application startup complete
+2024-12-18 14:53:46,637 - app.main - INFO - Application startup complete
+2024-12-18 14:54:52,096 - app.main - INFO - Application startup complete
+2024-12-18 14:57:03,594 - app.main - INFO - Application startup complete
+2024-12-18 14:57:48,760 - app.main - INFO - Application startup complete
+2024-12-18 14:57:55,966 - app.main - INFO - Application startup complete
+2024-12-18 14:57:57,058 - app.main - INFO - Application startup complete
+2024-12-18 14:58:43,657 - app.main - INFO - Application startup complete
+2024-12-18 15:01:16,974 - app.main - INFO - Application startup complete
+2024-12-18 15:02:46,891 - app.main - INFO - Application startup complete
+2024-12-18 15:03:02,113 - app.main - INFO - Application startup complete
+2024-12-18 19:26:32,604 - app.main - INFO - Application startup complete
+2024-12-18 19:32:36,272 - app.main - INFO - Application startup complete
+2024-12-18 19:32:48,478 - app.main - INFO - Application startup complete
+2024-12-18 19:36:46,162 - app.main - INFO - Application startup complete
+2024-12-18 19:37:38,663 - app.main - INFO - Application startup complete
+2024-12-18 19:37:53,112 - app.main - INFO - Application startup complete
+2024-12-18 19:38:10,781 - app.main - INFO - Application startup complete
+2024-12-18 19:39:54,355 - app.main - INFO - Application startup complete
+2024-12-18 19:43:04,409 - app.main - INFO - Application startup complete
+2024-12-18 19:44:49,682 - app.main - INFO - Application startup complete
+2024-12-18 19:44:57,567 - app.main - INFO - Application startup complete
+2024-12-18 19:45:30,536 - app.main - INFO - Application startup complete
+2024-12-18 19:48:08,932 - app.main - INFO - Application startup complete
+2024-12-18 19:48:19,492 - app.main - INFO - Application startup complete
+2024-12-18 19:48:30,562 - app.main - INFO - Application startup complete
+2024-12-18 19:50:54,554 - app.main - INFO - Application startup complete
+2024-12-18 19:54:26,828 - app.main - INFO - Application startup complete
+2024-12-18 20:07:36,783 - app.main - INFO - Application startup complete
+2024-12-18 20:07:51,419 - app.main - INFO - Application startup complete
+2024-12-18 20:46:41,007 - app.main - INFO - Application startup complete
+2024-12-18 20:47:28,060 - app.main - INFO - Application startup complete
+2024-12-18 20:57:02,065 - app.main - INFO - Application startup complete
+2024-12-25 12:02:57,595 - app.main - INFO - Application startup complete
+2024-12-25 13:24:34,521 - app.main - INFO - Application startup complete
+2024-12-25 13:28:12,316 - app.main - INFO - Application startup complete
+2024-12-25 13:28:14,697 - app.main - INFO - Application startup complete
+2024-12-25 13:28:40,127 - app.main - INFO - Application startup complete
+2024-12-25 13:28:41,227 - app.main - INFO - Application startup complete
+2024-12-25 13:28:54,650 - app.main - INFO - Application startup complete
+2024-12-25 13:28:55,109 - app.main - INFO - Application startup complete
+2024-12-25 13:29:21,359 - app.main - INFO - Application startup complete
+2024-12-25 13:33:14,985 - app.main - INFO - Application startup complete
+2024-12-30 14:20:02,449 - app.main - INFO - Application startup complete
+2024-12-30 14:23:14,572 - app.main - INFO - Application startup complete
+2024-12-30 14:38:14,960 - app.main - INFO - Application startup complete
+2024-12-30 14:38:26,478 - app.main - INFO - Application startup complete
+2024-12-30 14:40:37,144 - app.main - INFO - Application startup complete
+2024-12-30 14:41:09,562 - app.main - INFO - Application startup complete
+2024-12-30 14:41:15,549 - app.main - INFO - Application startup complete
+2024-12-30 14:41:25,346 - app.main - INFO - Application startup complete
+2024-12-30 14:45:13,217 - app.main - INFO - Application startup complete
+2024-12-30 14:51:39,108 - app.main - INFO - Application startup complete
+2024-12-30 14:53:37,162 - app.main - INFO - Application startup complete
+2024-12-30 14:58:50,478 - app.main - INFO - Application startup complete
+2024-12-30 15:00:33,753 - app.main - INFO - Application startup complete
+2024-12-30 15:02:05,334 - app.main - INFO - Application startup complete
+2024-12-30 15:04:21,873 - app.main - INFO - Application startup complete
+2024-12-30 15:04:44,318 - app.main - INFO - Application startup complete
+2024-12-30 15:51:35,130 - app.main - INFO - Application startup complete
+2024-12-30 15:55:09,210 - app.main - INFO - Application startup complete
+2024-12-30 15:59:48,770 - app.main - INFO - Application startup complete
+2024-12-30 16:13:04,949 - app.main - INFO - Application startup complete
+2024-12-30 16:15:15,490 - app.main - INFO - Application startup complete
+2024-12-30 16:15:41,745 - app.main - INFO - Application startup complete
+2024-12-30 16:18:29,337 - app.main - INFO - Application startup complete

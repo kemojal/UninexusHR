@@ -5,6 +5,9 @@ from app.models.organization import Organization
 from app.models.user import User
 from app.models.join_request import JoinRequest
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate
+from app.models.user_organization import UserOrganization
+from app.models.role import Role
+from app.models import user_roles
 
 class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationUpdate]):
     def get_by_name(self, db: Session, *, name: str) -> Optional[Organization]:
@@ -70,4 +73,31 @@ class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationUp
             return join_request
         return None
 
-organization = CRUDOrganization(Organization)
+    def get(self, db: Session, id: int) -> Optional[Organization]:
+        """Get organization by ID"""
+        return db.query(Organization).filter(Organization.id == id).first()
+
+    def is_admin(self, db: Session, *, org_id: int, user_id: int) -> bool:
+        """Check if a user is an admin of an organization"""
+        print(f"\n=== Checking admin status for user {user_id} in org {org_id} ===")
+
+        # Check user_roles table for admin role in this organization
+        admin_role = (
+            db.query(Role)
+            .join(user_roles, user_roles.c.role_id == Role.id)
+            .filter(
+                user_roles.c.user_id == user_id,
+                user_roles.c.organization_id == org_id,
+                Role.name.ilike("%admin%")
+            )
+            .first()
+        )
+
+        if admin_role:
+            print(f"User {user_id} is an admin for org {org_id}")
+            return True
+            
+        print(f"User {user_id} is not an admin for org {org_id}")
+        return False
+
+crud_organization = CRUDOrganization(Organization)

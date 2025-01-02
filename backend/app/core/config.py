@@ -11,13 +11,14 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"  # Algorithm for JWT token encoding
     
     # SMTP Settings
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_USER: str = "kemo3855@gmail.com"
+    SMTP_PASSWORD: str = "bmhv cwln qigw vzhc"
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_TLS: bool = True
-    EMAILS_FROM_EMAIL: str = "noreply@uninexushr.com"
+    EMAILS_FROM_EMAIL: str = "kemo3855@gmail.com"
     EMAILS_FROM_NAME: str = "UninexusHR"
+    SUPPORT_EMAIL: str = "support@uninexushr.com"
     
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"

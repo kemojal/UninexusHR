@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from datetime import datetime, timedelta
+from uuid import uuid4
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_user
-from app.schemas.member import MemberCreate, MemberUpdate, MemberResponse, InvitationCreate
-from app.models.user_organization import UserOrganization
-from app.models.role import Role
-from app.models.user import User
+from app.models import User, Organization, Role, UserOrganization, Invitation, user_roles
+from app.schemas.member import MemberCreate, MemberUpdate, MemberResponse
+from app.schemas.invitation import InvitationCreate
 from app.core.security import get_password_hash
-from app.utils.email import send_invitation_email
 from app.utils.permissions import check_permission
-from datetime import datetime, timedelta
+from app.utils.email import send_invitation_email
+from app.crud import crud_invitation, crud_member, crud_organization
+from app.core.config import settings
 import secrets
 import string
 
@@ -48,7 +50,12 @@ async def list_members(
         )
     
     if role:
-        query = query.join(Role, UserOrganization.role_id == Role.id).filter(Role.name == role)
+        query = (
+            query
+            .join(user_roles, user_roles.c.user_id == User.id)
+            .join(Role, user_roles.c.role_id == Role.id)
+            .filter(Role.name == role)
+        )
         
     if status:
         query = query.filter(User.status == status)
@@ -63,13 +70,13 @@ async def list_members(
     # Transform the results into the response format
     members = []
     for user, user_org in results:
-        # Get the roles for this user in this organization
+        # Get the roles for this user in this organization using user_roles table
         roles = (
             db.query(Role)
-            .join(UserOrganization, UserOrganization.role_id == Role.id)
+            .join(user_roles)  # Join with user_roles table directly
             .filter(
-                UserOrganization.user_id == user.id,
-                UserOrganization.organization_id == organization_id
+                user_roles.c.user_id == user.id,
+                user_roles.c.organization_id == organization_id
             )
             .all()
         )
@@ -86,84 +93,56 @@ async def list_members(
 async def invite_member(
     organization_id: int,
     invitation: InvitationCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Invite a new member to the organization"""
     check_permission(current_user, organization_id, "invite_members")
     
-    # Check if user already exists
-    existing_user = db.query(User).filter(User.email == invitation.email).first()
-    if existing_user:
-        # Check if user is already in the organization
-        existing_membership = db.query(UserOrganization).filter(
-            UserOrganization.user_id == existing_user.id,
-            UserOrganization.organization_id == organization_id
-        ).first()
-        if existing_membership:
-            raise HTTPException(
-                status_code=400,
-                detail="User is already a member of this organization"
-            )
-        user = existing_user
-    else:
-        # Generate a temporary password for the new user
-        temp_password = generate_temp_password()
-        hashed_password = get_password_hash(temp_password)
-        
-        # Create new user
-        user = User(
-            email=invitation.email,
-            hashed_password=hashed_password,  # Set the hashed temporary password
-            is_active=False,
-            status="INVITED",
-            full_name=""  # Empty string instead of null
-        )
-        db.add(user)
-        db.flush()
-    
-    # Check if role exists and belongs to the organization
-    role = db.query(Role).filter(
-        Role.id == invitation.role_id,
-        Role.organization_id == organization_id
-    ).first()
-    if not role:
-        raise HTTPException(
-            status_code=404,
-            detail="Role not found or does not belong to this organization"
-        )
-    
-    # Create user organization membership with role
-    user_org = UserOrganization(
-        user_id=user.id,
-        organization_id=organization_id,
-        role_id=role.id
+    # Check if user is already a member
+    if crud_member.get_by_email(db, organization_id=organization_id, email=invitation.email):
+        raise HTTPException(status_code=400, detail="User is already a member")
+
+    # Check if there's a pending invitation
+    existing_invitation = crud_invitation.get_pending_by_email(
+        db, organization_id=organization_id, email=invitation.email
     )
-    db.add(user_org)
+    if existing_invitation:
+        raise HTTPException(status_code=400, detail="Invitation already sent")
+
+    # Create invitation
+    token = str(uuid4())
+    expires_at = datetime.utcnow() + timedelta(days=7)
     
-    try:
-        db.commit()
-        # Send invitation email with the temporary password if it's a new user
-        if not existing_user:
-            await send_invitation_email(
-                user.email, 
-                current_user.full_name, 
-                organization_id,
-                temp_password  # Pass the temporary password to the email function
-            )
-        else:
-            await send_invitation_email(
-                user.email,
-                current_user.full_name,
-                organization_id
-            )
-        return {"message": "Invitation sent successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to send invitation: {str(e)}"
-        )
+    db_invitation = Invitation(
+        email=invitation.email,
+        organization_id=organization_id,
+        invited_by_id=current_user.id,
+        role_id=invitation.role_id,
+        token=token,
+        expires_at=expires_at,
+        status="pending"
+    )
+    db.add(db_invitation)
+    db.commit()
+    db.refresh(db_invitation)
+
+    # Get organization name for the email
+    organization = crud_organization.get(db, id=organization_id)
+    if not organization:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    # Send invitation email
+    invitation_url = f"{settings.FRONTEND_URL}/join?token={token}"
+    background_tasks.add_task(
+        send_invitation_email,
+        email_to=invitation.email,
+        invitation_url=invitation_url,
+        organization_name=organization.name
+    )
+
+    return {"message": "Invitation sent successfully", "invitation": db_invitation}
 
 @router.post("/bulk")
 async def bulk_action(
@@ -205,7 +184,7 @@ async def bulk_action(
     db.commit()
     return {"message": f"Bulk {action} completed successfully"}
 
-@router.put("/members/{member_id}/roles")
+@router.put("/{member_id}/roles")
 async def update_member_roles(
     organization_id: int,
     member_id: int,
@@ -216,6 +195,7 @@ async def update_member_roles(
     """Update member roles"""
     check_permission(current_user, organization_id, "manage_members")
     
+    # Check if member exists in organization
     member_org = db.query(UserOrganization).filter(
         UserOrganization.user_id == member_id,
         UserOrganization.organization_id == organization_id
@@ -224,6 +204,7 @@ async def update_member_roles(
     if not member_org:
         raise HTTPException(status_code=404, detail="Member not found")
     
+    # Verify all roles exist and belong to this organization
     roles = db.query(Role).filter(
         Role.id.in_(role_ids),
         Role.organization_id == organization_id
@@ -232,9 +213,23 @@ async def update_member_roles(
     if not roles:
         raise HTTPException(status_code=404, detail="No valid roles found")
     
-    member_org.role_id = roles[0].id
-    db.commit()
+    # Delete existing role assignments for this user in this organization
+    db.query(user_roles).filter(
+        user_roles.c.user_id == member_id,
+        user_roles.c.organization_id == organization_id
+    ).delete(synchronize_session=False)
     
+    # Add new role assignments
+    for role_id in role_ids:
+        db.execute(
+            user_roles.insert().values(
+                user_id=member_id,
+                role_id=role_id,
+                organization_id=organization_id
+            )
+        )
+    
+    db.commit()
     return {"message": "Member roles updated successfully"}
 
 @router.get("/members/{member_id}/activity")
