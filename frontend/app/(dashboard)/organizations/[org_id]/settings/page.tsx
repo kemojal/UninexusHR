@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useOrgStore } from '@/store/useOrgStore'
-import { Building2, Users, Mail, Trash2, AlertCircle } from 'lucide-react'
-import { toast } from 'sonner'
-import api from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useOrgStore } from "@/store/useOrgStore";
+import { Building2, Users, Mail, Trash2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import api from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -18,7 +18,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
+} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,72 +29,74 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { Separator } from '@/components/ui/separator'
-import { EmptyState } from '@/components/shared/empty-state'
+} from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/components/shared/empty-state";
 
 export default function OrgSettingsPage() {
-  const params = useParams()
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const { currentOrg, setCurrentOrg } = useOrgStore()
-  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const params = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { currentOrg, setCurrentOrg } = useOrgStore();
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   // Fetch organization details
   const { data: org, isLoading } = useQuery({
-    queryKey: ['organization', params.org_id],
+    queryKey: ["organization", params.org_id],
     queryFn: async () => {
-      const response = await api.get(`/organizations/${params.org_id}`)
-      return response.data
+      const response = await api.get(`/organizations/${params.org_id}`);
+      return response.data;
     },
-  })
+  });
 
   // Update organization mutation
   const updateMutation = useMutation({
     mutationFn: async (data: { name?: string; description?: string }) => {
-      const response = await api.patch(`/organizations/${params.org_id}`, data)
-      return response.data
+      const response = await api.put(`/organizations/${params.org_id}`, data);
+      return response.data;
     },
     onSuccess: (data) => {
-      setCurrentOrg(data)
-      queryClient.invalidateQueries({ queryKey: ['organization', params.org_id] })
-      toast.success('Organization updated successfully')
+      setCurrentOrg(data);
+      queryClient.invalidateQueries({
+        queryKey: ["organization", params.org_id],
+      });
+      toast.success("Organization updated successfully");
     },
     onError: () => {
-      toast.error('Failed to update organization')
+      toast.error("Failed to update organization");
     },
-  })
+  });
 
   // Delete organization mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      await api.delete(`/organizations/${params.org_id}`)
+      await api.delete(`/organizations/${params.org_id}`);
     },
     onSuccess: () => {
-      toast.success('Organization deleted successfully')
-      router.push('/organizations')
+      toast.success("Organization deleted successfully");
+      router.push("/organizations");
     },
     onError: () => {
-      toast.error('Failed to delete organization')
+      toast.error("Failed to delete organization");
     },
-  })
+  });
 
   const handleUpdateOrg = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     updateMutation.mutate({
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-    })
-  }
+      name: formData.get("name") as string,
+      description: formData.get("description") as string,
+    });
+  };
 
   const handleDeleteOrg = () => {
     if (deleteConfirmation !== org?.name) {
-      toast.error('Please type the organization name to confirm deletion')
-      return
+      toast.error("Please type the organization name to confirm deletion");
+      return;
     }
-    deleteMutation.mutate()
-  }
+    deleteMutation.mutate();
+  };
 
   if (!currentOrg) {
     return (
@@ -103,11 +105,11 @@ export default function OrgSettingsPage() {
         title="No Organization Selected"
         description="Please select an organization to manage its settings."
         action={{
-          label: 'View Organizations',
-          onClick: () => router.push('/organizations'),
+          label: "View Organizations",
+          onClick: () => router.push("/organizations"),
         }}
       />
-    )
+    );
   }
 
   if (isLoading) {
@@ -115,13 +117,15 @@ export default function OrgSettingsPage() {
       <div className="flex h-[50vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Organization Settings</h2>
+        <h2 className="text-2xl font-bold tracking-tight">
+          Organization Settings
+        </h2>
         <p className="text-muted-foreground">
           Manage your organization's settings and preferences
         </p>
@@ -139,7 +143,11 @@ export default function OrgSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form id="update-org-form" onSubmit={handleUpdateOrg} className="space-y-4">
+            <form
+              id="update-org-form"
+              onSubmit={handleUpdateOrg}
+              className="space-y-4"
+            >
               <div className="grid gap-2">
                 <Label htmlFor="name">Organization Name</Label>
                 <Input
@@ -185,10 +193,12 @@ export default function OrgSettingsPage() {
               <div className="flex items-center gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive" />
                 <div>
-                  <h4 className="font-medium text-destructive">Delete Organization</h4>
+                  <h4 className="font-medium text-destructive">
+                    Delete Organization
+                  </h4>
                   <p className="text-sm text-destructive/80">
-                    This action cannot be undone. This will permanently delete the
-                    organization and remove all associated data.
+                    This action cannot be undone. This will permanently delete
+                    the organization and remove all associated data.
                   </p>
                 </div>
               </div>
@@ -205,11 +215,13 @@ export default function OrgSettingsPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the
-                    organization and remove all associated data.
+                    This action cannot be undone. This will permanently delete
+                    the organization and remove all associated data.
                     <div className="mt-4">
                       <Label htmlFor="confirm">
-                        Please type <span className="font-medium">{org?.name}</span> to confirm
+                        Please type{" "}
+                        <span className="font-medium">{org?.name}</span> to
+                        confirm
                       </Label>
                       <Input
                         id="confirm"
@@ -237,5 +249,5 @@ export default function OrgSettingsPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

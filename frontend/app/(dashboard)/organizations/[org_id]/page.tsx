@@ -22,8 +22,12 @@ import {
   UserPlus,
   Users2,
   Key,
+  Search,
+  MoreHorizontal,
+  ShieldCheck,
+  CalendarDays,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +55,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+// import {
+//   Command,
+//   CommandEmpty,
+//   CommandGroup,
+//   CommandInput,
+//   CommandItem,
+// } from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +71,24 @@ import {
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuthStore } from "@/lib/store/auth";
+import RoleSelector from "@/components/roles/RoleSelector";
 
 interface Permission {
   id: number;
@@ -88,6 +118,7 @@ interface Member {
   avatar_url?: string;
   roles: Role[];
   last_active: string;
+  status: string;
 }
 
 interface Organization {
@@ -99,6 +130,260 @@ interface Organization {
   updated_at: string;
 }
 
+interface Invitation {
+  id: number;
+  email: string;
+  status: string;
+  created_at: string;
+  expires_at: string;
+}
+
+interface MembersTableProps {
+  members: Member[];
+  selectedMembers: number[];
+  onMemberSelection: (memberId: number) => void;
+  onBulkAction: (action: string) => void;
+  setSelectedMembers: (members: number[]) => void;
+  org_id: string;
+}
+
+const MembersTable = ({
+  members,
+  selectedMembers,
+  onMemberSelection,
+  onBulkAction,
+  setSelectedMembers,
+  org_id,
+}: MembersTableProps) => {
+  const [editRolesDialogOpen, setEditRolesDialogOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const queryClient = useQueryClient();
+  const params = useRouter().params;
+
+  const updateMemberRoles = useMutation({
+    mutationFn: async ({ memberId, roleIds }) => {
+      const response = await api.put(
+        `/organizations/${org_id}/members/${memberId}/roles`,
+        roleIds
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["members", org_id]);
+      toast.success("Member roles updated successfully");
+      setEditRolesDialogOpen(false);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update member roles");
+    },
+  });
+
+  const removeMember = useMutation({
+    mutationFn: async (memberId) => {
+      const response = await api.delete(
+        `/organizations/${org_id}/members/${memberId}`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["members", org_id]);
+      toast.success("Member removed successfully");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || "Failed to remove member");
+    },
+  });
+
+  const handleEditRoles = (member) => {
+    setSelectedMember(member);
+    setSelectedRoles(member.roles.map((role) => role.id));
+    setEditRolesDialogOpen(true);
+  };
+
+  const handleRemoveMember = (memberId) => {
+    if (window.confirm("Are you sure you want to remove this member?")) {
+      removeMember.mutate(memberId);
+    }
+  };
+
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12">
+              <Checkbox
+                checked={
+                  members?.length > 0 &&
+                  selectedMembers.length === members.length
+                }
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedMembers(members.map((member) => member.id));
+                  } else {
+                    setSelectedMembers([]);
+                  }
+                }}
+              />
+            </TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Roles</TableHead>
+            <TableHead>Last Active</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {members?.map((member) => (
+            <TableRow key={member.id}>
+              <TableCell>
+                <Checkbox
+                  checked={selectedMembers.includes(member.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      onMemberSelection([...selectedMembers, member.id]);
+                    } else {
+                      onMemberSelection(
+                        selectedMembers.filter((id) => id !== member.id)
+                      );
+                    }
+                  }}
+                />
+              </TableCell>
+              <TableCell className="font-medium">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8">
+                    {member.avatar_url ? (
+                      <AvatarImage src={member.avatar_url} />
+                    ) : (
+                      <AvatarFallback>
+                        {member.full_name
+                          ?.split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {member.full_name}
+                </div>
+              </TableCell>
+              <TableCell>{member.email}</TableCell>
+              <TableCell>
+                <Badge variant={member.is_active ? "success" : "secondary"}>
+                  {member.is_active ? "Active" : "Inactive"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-1">
+                  {member.roles.map((role) => (
+                    <Badge key={role.id} variant="outline">
+                      {role.name}
+                    </Badge>
+                  ))}
+                </div>
+              </TableCell>
+              <TableCell>
+                {member.last_active
+                  ? formatDistanceToNow(new Date(member.last_active * 1000), {
+                      addSuffix: true,
+                    })
+                  : "Never"}
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEditRoles(member)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Roles
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => handleRemoveMember(member.id)}
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      Remove
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={editRolesDialogOpen} onOpenChange={setEditRolesDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Member Roles</DialogTitle>
+            <DialogDescription>
+              Update roles for {selectedMember?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {useQuery({
+              queryKey: ["roles", org_id],
+              queryFn: async () => {
+                const response = await api.get(
+                  `/organizations/${org_id}/roles`
+                );
+                return response.data;
+              },
+            }).data?.map((role) => (
+              <div key={role.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`role-${role.id}`}
+                  checked={selectedRoles.includes(role.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedRoles([...selectedRoles, role.id]);
+                    } else {
+                      setSelectedRoles(
+                        selectedRoles.filter((id) => id !== role.id)
+                      );
+                    }
+                  }}
+                />
+                <label
+                  htmlFor={`role-${role.id}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {role.name}
+                </label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditRolesDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                updateMemberRoles.mutate({
+                  memberId: selectedMember.id,
+                  roleIds: selectedRoles,
+                });
+              }}
+              disabled={updateMemberRoles.isPending}
+            >
+              {updateMemberRoles.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
 export default function OrganizationPage({
   params,
 }: {
@@ -106,7 +391,9 @@ export default function OrganizationPage({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState("overview");
+  const [memberTab, setMemberTab] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [permissionsViewMode, setPermissionsViewMode] = useState<
     "grid" | "list"
@@ -114,12 +401,10 @@ export default function OrganizationPage({
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
-  const [editPermissionDialogOpen, setEditPermissionDialogOpen] = useState(
-    false
-  );
-  const [createPermissionDialogOpen, setCreatePermissionDialogOpen] = useState(
-    false
-  );
+  const [editPermissionDialogOpen, setEditPermissionDialogOpen] =
+    useState(false);
+  const [createPermissionDialogOpen, setCreatePermissionDialogOpen] =
+    useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [newRole, setNewRole] = useState({
@@ -143,13 +428,17 @@ export default function OrganizationPage({
     description: "",
     category: "",
   });
+  const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Helper function to safely format dates
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), "MMM d, yyyy");
     } catch (error) {
-      return "Invalid date";
+      return "-";
     }
   };
 
@@ -162,30 +451,70 @@ export default function OrganizationPage({
     },
   });
 
-  // Fetch members
-  const { data: members = [], isLoading: membersLoading } = useQuery({
-    queryKey: ["members", params.org_id],
-    queryFn: async () => {
-      const response = await api.get(
-        `/organizations/${params.org_id}/members`
-      );
-      return response.data;
-    },
-    enabled: activeTab === "members",
+  // Fetch members with status filter
+  const fetchMembers = async () => {
+    let statusFilter;
+    switch (memberTab) {
+      case "active":
+        statusFilter = "active";
+        break;
+      case "inactive":
+        statusFilter = "inactive";
+        break;
+      default:
+        statusFilter = undefined;
+    }
+
+    const response = await api.get(`/organizations/${params.org_id}/members`, {
+      params: {
+        status: statusFilter,
+        search: searchQuery || undefined,
+        role: roleFilter !== "all" ? roleFilter : undefined,
+      },
+    });
+    return response.data;
+  };
+
+  // Fetch members data with proper query key
+  const { data: membersData, isLoading: isMembersLoading } = useQuery({
+    queryKey: ["members", params.org_id, memberTab, searchQuery, roleFilter],
+    queryFn: fetchMembers,
   });
 
   // Fetch roles
-  const { data: roles = [], isLoading: rolesLoading } = useQuery({
+  const { data: roles = [], isLoading: isLoadingRoles } = useQuery<
+    { id: number; name: string }[]
+  >({
     queryKey: ["roles", params.org_id],
     queryFn: async () => {
       const response = await api.get(`/organizations/${params.org_id}/roles`);
-      return response.data;
+      return response.data || []; // Ensure we return an empty array if data is undefined
     },
-    enabled: activeTab === "roles" && rolesPermissionsTab === "roles",
+    enabled: !!params.org_id,
   });
 
+  // Fetch invitations
+  const { data: invitationsData, isLoading: isInvitationsLoading } = useQuery({
+    queryKey: ["invitations", params.org_id],
+    queryFn: async () => {
+      const response = await api.get(
+        `/organizations/${params.org_id}/invitations`
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Removed unused variable
+    },
+  });
+
+  // Fetch roles
+  const fetchRoles = async () => {
+    const response = await api.get(`/organizations/${params.org_id}/roles`);
+    return response.data;
+  };
+
   // Fetch permissions
-  const { data: permissions = [], isLoading: permissionsLoading } = useQuery({
+  const { data: permissionsData, isLoading: permissionsLoading } = useQuery({
     queryKey: ["permissions", params.org_id],
     queryFn: async () => {
       const response = await api.get(
@@ -201,10 +530,13 @@ export default function OrganizationPage({
     mutationKey: ["invite-member", params.org_id],
     mutationFn: async () => {
       if (!selectedRoleId) throw new Error("Please select a role");
-      const response = await api.post(`/organizations/${params.org_id}/members/invite`, {
-        email: inviteEmail,
-        role_id: selectedRoleId,
-      });
+      const response = await api.post(
+        `/organizations/${params.org_id}/members/invite`,
+        {
+          email: inviteEmail,
+          role_id: selectedRoleId,
+        }
+      );
       return response;
     },
     onSuccess: () => {
@@ -216,10 +548,15 @@ export default function OrganizationPage({
     },
     onError: (error: any) => {
       // Check if it's a known error case
-      if (error.response?.status === 400 && error.response?.data?.detail?.includes("already a member")) {
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.detail?.includes("already a member")
+      ) {
         toast.warning("This user is already a member of this organization");
       } else {
-        toast.error(error.response?.data?.detail || "Failed to send invitation");
+        toast.error(
+          error.response?.data?.detail || "Failed to send invitation"
+        );
       }
       // Keep the dialog open for 400 errors so user can correct the input
       if (error.response?.status !== 400) {
@@ -301,7 +638,9 @@ export default function OrganizationPage({
       toast.success("Permission created successfully");
       setCreatePermissionDialogOpen(false);
       setNewPermission({ name: "", description: "", category: "" });
-      queryClient.invalidateQueries({ queryKey: ["permissions", params.org_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["permissions", params.org_id],
+      });
     },
     onError: (error: any) => {
       toast.error(
@@ -328,7 +667,9 @@ export default function OrganizationPage({
       toast.success("Permission updated successfully");
       setEditPermissionDialogOpen(false);
       setEditingPermission(null);
-      queryClient.invalidateQueries({ queryKey: ["permissions", params.org_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["permissions", params.org_id],
+      });
     },
     onError: (error: any) => {
       toast.error(
@@ -348,11 +689,50 @@ export default function OrganizationPage({
     },
     onSuccess: () => {
       toast.success("Permission deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["permissions", params.org_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["permissions", params.org_id],
+      });
     },
     onError: (error: any) => {
       toast.error(
         error.response?.data?.detail || "Failed to delete permission"
+      );
+    },
+  });
+
+  // Mutations for invitation management
+  const resendInvitation = useMutation({
+    mutationFn: async (invitationId: number) => {
+      const response = await api.post(
+        `/organizations/${params.org_id}/invitations/${invitationId}/resend`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["invitations", params.org_id]);
+      toast.success("Invitation resent successfully");
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.detail || "Failed to resend invitation"
+      );
+    },
+  });
+
+  const cancelInvitation = useMutation({
+    mutationFn: async (invitationId: number) => {
+      const response = await api.delete(
+        `/organizations/${params.org_id}/invitations/${invitationId}`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["invitations", params.org_id]);
+      toast.success("Invitation cancelled successfully");
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.detail || "Failed to cancel invitation"
       );
     },
   });
@@ -422,6 +802,80 @@ export default function OrganizationPage({
     }
   };
 
+  const { data: rolesData, isLoading: isRolesLoading } = useQuery({
+    queryKey: ["roles", params.org_id],
+    queryFn: fetchRoles,
+  });
+
+  const handleMemberSelection = (memberId: number) => {
+    setSelectedMembers((prev) =>
+      prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  const handleBulkAction = async (action: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/organizations/${params.org_id}/members/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            member_ids: selectedMembers,
+            action,
+          }),
+        }
+      );
+      if (!response.ok) throw new Error(`Failed to ${action} members`);
+
+      toast({
+        title: "Success",
+        description: `Successfully ${action}ed selected members`,
+      });
+
+      // Removed duplicate membersData query
+      queryClient.invalidateQueries({ queryKey: ["members", params.org_id] });
+      setSelectedMembers([]);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to ${action} members`,
+      });
+    }
+  };
+
+  // Get current user's member status and admin role
+  const currentUserMember = membersData?.find(
+    (member) => member.email === user?.email
+  );
+
+  const hasAdminRole = currentUserMember?.roles?.some(
+    (role) => role.name.toLowerCase() === "admin"
+  );
+
+  const isAdmin = !!currentUserMember && !!hasAdminRole;
+
+  // Filter members based on search query and role filter
+  const filteredMembers = membersData?.filter((member) => {
+    const matchesSearch =
+      member.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole =
+      roleFilter === "all" ||
+      member.roles.some((role) => role.id.toString() === roleFilter);
+
+    return matchesSearch && matchesRole;
+  });
+
+  useEffect(() => {
+    fetchRoles();
+  }, [params.org_id]);
+
   if (isLoadingOrg) {
     return (
       <div className="p-6 space-y-6">
@@ -477,49 +931,61 @@ export default function OrganizationPage({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Total Members Card */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Members
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {organization.member_count}
+              {isMembersLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                membersData?.length || 0
+              )}
             </div>
             <p className="text-xs text-muted-foreground">Active team members</p>
           </CardContent>
         </Card>
+
+        {/* Total Roles Card */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Roles
-            </CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{organization.role_count}</div>
-            <p className="text-xs text-muted-foreground">
-              Custom roles defined
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Created
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Roles</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {organization.created_at
-                ? formatDate(organization.created_at)
-                : "N/A"}
+              {isLoadingRoles ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                roles?.length || 0
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">Organization age</p>
+            <p className="text-xs text-muted-foreground">Total roles created</p>
+          </CardContent>
+        </Card>
+
+        {/* Created Date Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Created</CardTitle>
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoadingOrg ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                formatDate(organization?.created_at)
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Organization created date
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -563,131 +1029,166 @@ export default function OrganizationPage({
         </TabsContent>
 
         <TabsContent value="members" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Members</CardTitle>
-                <CardDescription>
-                  Manage organization members and their roles
-                </CardDescription>
-              </div>
-              <Dialog
-                open={inviteDialogOpen}
-                onOpenChange={setInviteDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Mail className="w-4 h-4" />
-                    Invite Member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Invite Member</DialogTitle>
-                    <DialogDescription>
-                      Send an invitation to join the organization
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleInvite} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email address</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="Enter email address"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Role</Label>
-                      <select
-                        className="w-full rounded-md border p-2"
-                        value={selectedRoleId || ""}
-                        onChange={(e) =>
-                          setSelectedRoleId(Number(e.target.value))
-                        }
-                        required
-                      >
-                        <option value="">Select a role</option>
-                        {roles?.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setInviteDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={inviteMutation.isPending || !selectedRoleId}
-                      >
-                        {inviteMutation.isPending
-                          ? "Sending..."
-                          : "Send Invitation"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {membersLoading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-12" />
-                  <Skeleton className="h-12" />
-                  <Skeleton className="h-12" />
+          <div className="container mx-auto py-6">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold">Members</h1>
+              <Button onClick={() => setInviteDialogOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Invite Member
+              </Button>
+            </div>
+
+            <Tabs defaultValue="all" onValueChange={setMemberTab}>
+              <TabsList>
+                <TabsTrigger value="all">
+                  {isAdmin ? "All Members" : "Members"}
+                </TabsTrigger>
+                {isAdmin && <TabsTrigger value="active">Active</TabsTrigger>}
+                {/* {isAdmin && (
+                  <TabsTrigger value="inactive">Inactive</TabsTrigger>
+                )} */}
+                {isAdmin && (
+                  <TabsTrigger value="invitations">Invitations</TabsTrigger>
+                )}
+              </TabsList>
+
+              <div className="my-4 flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search members..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {members?.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-4 rounded-lg border"
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    {rolesData?.map((role) => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedMembers.length > 0 && (
+                <div className="my-2 p-2 bg-muted rounded-md flex items-center justify-between">
+                  <span>{selectedMembers.length} members selected</span>
+                  <div className="space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedMembers([])}
                     >
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={member.avatar_url} />
-                          <AvatarFallback>
-                            {member.full_name.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{member.full_name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {member.email}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex gap-2">
-                          {member.roles?.map((role) => (
-                            <Badge key={role.id} variant="secondary">
-                              {role.name}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          {member.last_active
-                            ? formatDate(member.last_active)
-                            : "Never"}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      Clear Selection
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleBulkAction("remove")}
+                    >
+                      Remove Selected
+                    </Button>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+
+              <TabsContent value="all">
+                {isMembersLoading ? (
+                  <div className="text-center py-4">Loading members...</div>
+                ) : !filteredMembers?.length ? (
+                  <div className="text-center py-4">No members found</div>
+                ) : (
+                  <MembersTable
+                    members={filteredMembers}
+                    selectedMembers={selectedMembers}
+                    onMemberSelection={handleMemberSelection}
+                    onBulkAction={handleBulkAction}
+                    setSelectedMembers={setSelectedMembers}
+                    org_id={params.org_id}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="active">
+                {isMembersLoading ? (
+                  <div className="text-center py-4">Loading members...</div>
+                ) : !filteredMembers?.length ? (
+                  <div className="text-center py-4">
+                    No active members found
+                  </div>
+                ) : (
+                  <MembersTable
+                    members={
+                      filteredMembers?.filter(
+                        (member) => member.status === "active"
+                      ) || []
+                    }
+                    selectedMembers={selectedMembers}
+                    onMemberSelection={handleMemberSelection}
+                    onBulkAction={handleBulkAction}
+                    setSelectedMembers={setSelectedMembers}
+                    org_id={params.org_id}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="invitations">
+                {isInvitationsLoading ? (
+                  <div className="text-center py-4">Loading invitations...</div>
+                ) : !invitationsData?.length ? (
+                  <div className="text-center py-4">No invitations found</div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Sent</TableHead>
+                          <TableHead>Expires</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invitationsData?.map((invitation) => (
+                          <TableRow key={invitation.id}>
+                            <TableCell>{invitation.email}</TableCell>
+                            <TableCell>{invitation.status}</TableCell>
+                            <TableCell>
+                              {formatDate(invitation.created_at)}
+                            </TableCell>
+                            <TableCell>
+                              {formatDate(invitation.expires_at)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleResendInvitation(invitation.id)
+                                }
+                              >
+                                Resend
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-6">
@@ -795,7 +1296,6 @@ export default function OrganizationPage({
                               })
                             }
                             placeholder="Enter role description"
-                            required
                           />
                         </div>
                         <DialogFooter>
@@ -945,7 +1445,7 @@ export default function OrganizationPage({
             </CardHeader>
             <CardContent>
               {rolesPermissionsTab === "roles" ? (
-                rolesLoading ? (
+                isRolesLoading ? (
                   <div
                     className={cn(
                       "space-y-4",
@@ -969,7 +1469,7 @@ export default function OrganizationPage({
                         "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                     )}
                   >
-                    {roles?.map((role) => (
+                    {rolesData?.map((role) => (
                       <div
                         key={role.id}
                         className={cn(
@@ -1074,7 +1574,7 @@ export default function OrganizationPage({
                           "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                       )}
                     >
-                      {permissions?.map((permission) => (
+                      {permissionsData?.map((permission) => (
                         <div
                           key={permission.id}
                           className={cn(
@@ -1197,7 +1697,7 @@ export default function OrganizationPage({
       <Dialog open={editRoleDialogOpen} onOpenChange={handleEditRoleClose}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Role</DialogTitle>
+            <DialogTitle>Edit RoleXX</DialogTitle>
             <DialogDescription>
               Update role details and permissions
             </DialogDescription>
@@ -1233,7 +1733,7 @@ export default function OrganizationPage({
               <div className="space-y-2">
                 <Label>Permissions</Label>
                 <div className="space-y-2">
-                  {permissions?.map((permission) => (
+                  {permissionsData?.map((permission) => (
                     <div
                       key={permission.id}
                       className="flex items-center gap-2"
@@ -1374,6 +1874,102 @@ export default function OrganizationPage({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* invite member dialogue */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Invite Team Member</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleInvite} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+
+              {/* {isLoadingRoles ? (
+                <div className="h-[200px] flex items-center justify-center">
+                  <div className="animate-spin">◌</div>
+                </div>
+              ) : ( */}
+              {/* <Command className="rounded-lg border shadow-md">
+                <CommandInput placeholder="Search roles..." />
+                <CommandEmpty>No roles found.</CommandEmpty>
+                <CommandGroup>
+                  {roles.length > 0 ? (
+                    roles.map((role) => (
+                      <CommandItem
+                        key={role.id}
+                        onSelect={() => setSelectedRoleId(role.id)}
+                        className={cn(
+                          "cursor-pointer",
+                          selectedRoleId === role.id && "bg-primary/5"
+                        )}
+                      >
+                        <Shield className="mr-2 h-4 w-4" />
+                        {role.name}
+                        {selectedRoleId === role.id && (
+                          <span className="ml-auto">✓</span>
+                        )}
+                      </CommandItem>
+                    ))
+                  ) : (
+                    <CommandEmpty>No roles available</CommandEmpty>
+                  )}
+                </CommandGroup>
+              </Command> */}
+              {/* // )} */}
+              {/* <RoleSelector
+                selectedRoleId={selectedRoleId}
+                setSelectedRoleId={setSelectedRoleId}
+              /> */}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setInviteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={inviteMutation.isPending || !selectedRoleId}
+              >
+                {inviteMutation.isPending ? (
+                  <>
+                    <motion.div
+                      className="mr-2 h-4 w-4 animate-spin"
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                    >
+                      ◌
+                    </motion.div>
+                    Sending...
+                  </>
+                ) : (
+                  "Send Invitation"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
+
+
