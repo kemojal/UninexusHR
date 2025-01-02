@@ -26,7 +26,19 @@ import {
   MoreHorizontal,
   ShieldCheck,
   CalendarDays,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -432,6 +444,8 @@ export default function OrganizationPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   // Helper function to safely format dates
   const formatDate = (dateString: string) => {
@@ -847,6 +861,27 @@ export default function OrganizationPage({
       });
     }
   };
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/organizations/${params.org_id}`);
+    },
+    onSuccess: () => {
+      toast.success("Organization deleted successfully");
+      router.push("/organizations");
+      window.location.href = "/organizations";
+    },
+    onError: () => {
+      toast.error("Failed to delete organization");
+    },
+  });
+
+  const handleDeleteOrg = () => {
+    if (deleteConfirmation !== organization?.name) {
+      toast.error("Please type the organization name to confirm deletion");
+      return;
+    }
+    deleteMutation.mutate();
+  };
 
   // Get current user's member status and admin role
   const currentUserMember = membersData?.find(
@@ -875,6 +910,26 @@ export default function OrganizationPage({
   useEffect(() => {
     fetchRoles();
   }, [params.org_id]);
+
+  // const handleDeleteOrganization = async () => {
+  //   const confirmed = window.confirm(
+  //     "Are you sure you want to delete this organization?"
+  //   );
+  //   if (confirmed) {
+  //     try {
+  //       await fetch(`/api/v1/organizations/${organization.id}`, {
+  //         method: "DELETE",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //       });
+  //       // Redirect or update state after deletion
+  //       window.location.href = "/organizations";
+  //     } catch (error) {
+  //       console.error("Error deleting organization:", error);
+  //     }
+  //   }
+  // };
 
   if (isLoadingOrg) {
     return (
@@ -924,10 +979,56 @@ export default function OrganizationPage({
             </p>
           </div>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Settings2 className="w-4 h-4" />
-          Settings
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" className="gap-2">
+            <Settings2 className="w-4 h-4" />
+            Settings
+          </Button>
+          {/* <Button variant="destructive" onClick={handleDeleteOrganization}>
+            Delete Organization
+          </Button> */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  organization and remove all associated data.
+                  <div className="mt-4">
+                    <Label htmlFor="confirm">
+                      Please type{" "}
+                      <span className="font-medium">{organization?.name}</span>{" "}
+                      to confirm
+                    </Label>
+                    <Input
+                      id="confirm"
+                      value={deleteConfirmation}
+                      onChange={(e) => setDeleteConfirmation(e.target.value)}
+                      placeholder="Enter organization name"
+                      className="mt-2"
+                    />
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteOrg}
+                  disabled={deleteMutation.isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       {/* Stats */}
@@ -1401,7 +1502,7 @@ export default function OrganizationPage({
                           <Label htmlFor="category">Category</Label>
                           <select
                             id="category"
-                            className="w-full rounded-md border p-2"
+                            className="w-full rounded-md border p-2 bg-red-500"
                             value={newPermission.category}
                             onChange={(e) =>
                               setNewPermission({
@@ -1971,5 +2072,3 @@ export default function OrganizationPage({
     </motion.div>
   );
 }
-
-

@@ -75,6 +75,7 @@ export default function OrgSettingsPage() {
     onSuccess: () => {
       toast.success("Organization deleted successfully");
       router.push("/organizations");
+      window.location.href = '/organizations';
     },
     onError: () => {
       toast.error("Failed to delete organization");

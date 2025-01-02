@@ -99,6 +99,22 @@ def update_organization(
     )
     return organization
 
+@router.delete("/{organization_id}", response_model=dict)
+async def delete_organization(
+    organization_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """Delete an organization by ID."""
+    organization = crud.crud_organization.get(db=db, id=organization_id)
+    if not organization:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    # Check if the user has permission to delete the organization
+    if not crud.crud_user.is_superuser(current_user):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    crud.crud_organization.remove(db=db, id=organization_id)
+    return {"detail": "Organization deleted successfully"}
+
 @router.post("/{organization_id}/invitations", response_model=InvitationResponse)
 async def create_invitation(
     *,
