@@ -6,7 +6,7 @@ from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.models.permission import Permission
 from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionResponse
-from app.crud import permission
+from app.crud.permission import permission
 
 router = APIRouter()
 
