@@ -225,6 +225,15 @@ class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationUp
         db.commit()
         db.refresh(user_organization)
 
+        # Add the user to the user_roles table
+        user_role_entry = user_roles.insert().values(
+            user_id=user_id,
+            role_id=admin_role.id,
+            organization_id=organization_id
+        )
+        db.execute(user_role_entry)
+        db.commit()
+
         return user_organization
 
 crud_organization = CRUDOrganization(Organization)

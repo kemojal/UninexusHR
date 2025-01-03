@@ -101,6 +101,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthStore } from "@/lib/store/auth";
 import RoleSelector from "@/components/roles/RoleSelector";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 
 interface Permission {
   id: number;
@@ -496,7 +503,8 @@ export default function OrganizationPage({
   });
 
   // Fetch roles
-  const { data: roles = [], isLoading: isLoadingRoles } = useQuery<
+  const [roles, setRoles] = useState([]);
+  const { data: rolesData, isLoading: isLoadingRoles } = useQuery<
     { id: number; name: string }[]
   >({
     queryKey: ["roles", params.org_id],
@@ -816,11 +824,6 @@ export default function OrganizationPage({
     }
   };
 
-  const { data: rolesData, isLoading: isRolesLoading } = useQuery({
-    queryKey: ["roles", params.org_id],
-    queryFn: fetchRoles,
-  });
-
   const handleMemberSelection = (memberId: number) => {
     setSelectedMembers((prev) =>
       prev.includes(memberId)
@@ -1003,7 +1006,9 @@ export default function OrganizationPage({
                   <div className="mt-4">
                     <Label htmlFor="confirm">
                       Please type{" "}
-                      <span className="font-bold text-black">{organization?.name}</span>{" "}
+                      <span className="font-bold text-black">
+                        {organization?.name}
+                      </span>{" "}
                       to confirm
                     </Label>
                     <Input
@@ -1171,11 +1176,15 @@ export default function OrganizationPage({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
-                    {rolesData?.map((role) => (
-                      <SelectItem key={role.id} value={role.id.toString()}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(roles) && roles.length > 0 ? (
+                      roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id.toString()}>
+                          {role.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none">No roles available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1546,7 +1555,7 @@ export default function OrganizationPage({
             </CardHeader>
             <CardContent>
               {rolesPermissionsTab === "roles" ? (
-                isRolesLoading ? (
+                isLoadingRoles ? (
                   <div
                     className={cn(
                       "space-y-4",
@@ -1570,81 +1579,87 @@ export default function OrganizationPage({
                         "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                     )}
                   >
-                    {rolesData?.map((role) => (
-                      <div
-                        key={role.id}
-                        className={cn(
-                          "group relative border rounded-lg overflow-hidden transition-all",
-                          viewMode === "list" ? "mb-4 p-4" : "p-6"
-                        )}
-                      >
+                    {Array.isArray(roles) && roles.length > 0 ? (
+                      roles.map((role) => (
                         <div
+                          key={role.id}
                           className={cn(
-                            "flex",
-                            viewMode === "list"
-                              ? "flex-row items-center justify-between"
-                              : "flex-col space-y-4"
+                            "group relative border rounded-lg overflow-hidden transition-all",
+                            viewMode === "list" ? "mb-4 p-4" : "p-6"
                           )}
                         >
                           <div
-                            className={cn(viewMode === "list" ? "flex-1" : "")}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="font-medium text-lg">
-                                {role.name}
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <ChevronRight className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => handleEditRole(role)}
-                                  >
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Edit Role
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="text-red-600"
-                                    onClick={() => handleDeleteRole(role.id)}
-                                  >
-                                    <Trash className="mr-2 h-4 w-4" />
-                                    Delete Role
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {role.description || "No description"}
-                            </p>
-                          </div>
-                          <div
                             className={cn(
-                              "space-y-4",
+                              "flex",
                               viewMode === "list"
-                                ? "flex items-center gap-4 space-y-0"
-                                : ""
+                                ? "flex-row items-center justify-between"
+                                : "flex-col space-y-4"
                             )}
                           >
-                            <div className="flex items-center gap-2">
-                              <Users2 className="w-4 h-4 text-muted-foreground" />
-                              <Badge variant="secondary">
-                                {role.member_count || 0} members
-                              </Badge>
+                            <div
+                              className={cn(
+                                viewMode === "list" ? "flex-1" : ""
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-lg">
+                                  {role.name}
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() => handleEditRole(role)}
+                                    >
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Edit Role
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onClick={() => handleDeleteRole(role.id)}
+                                    >
+                                      <Trash className="mr-2 h-4 w-4" />
+                                      Delete Role
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {role.description || "No description"}
+                              </p>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              {role.permissions?.map((permission) => (
-                                <Badge key={permission.id} variant="outline">
-                                  {permission.name}
+                            <div
+                              className={cn(
+                                "space-y-4",
+                                viewMode === "list"
+                                  ? "flex items-center gap-4 space-y-0"
+                                  : ""
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Users2 className="w-4 h-4 text-muted-foreground" />
+                                <Badge variant="secondary">
+                                  {role.member_count || 0} members
                                 </Badge>
-                              ))}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {role.permissions?.map((permission) => (
+                                  <Badge key={permission.id} variant="outline">
+                                    {permission.name}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <div className="text-center py-4">No roles found</div>
+                    )}
                   </div>
                 )
               ) : (
@@ -1997,38 +2012,38 @@ export default function OrganizationPage({
             <div className="space-y-2">
               <Label>Role</Label>
 
-              {/* {isLoadingRoles ? (
+              {isLoadingRoles ? (
                 <div className="h-[200px] flex items-center justify-center">
                   <div className="animate-spin">◌</div>
                 </div>
-              ) : ( */}
-              {/* <Command className="rounded-lg border shadow-md">
-                <CommandInput placeholder="Search roles..." />
-                <CommandEmpty>No roles found.</CommandEmpty>
-                <CommandGroup>
-                  {roles.length > 0 ? (
-                    roles.map((role) => (
-                      <CommandItem
-                        key={role.id}
-                        onSelect={() => setSelectedRoleId(role.id)}
-                        className={cn(
-                          "cursor-pointer",
-                          selectedRoleId === role.id && "bg-primary/5"
-                        )}
-                      >
-                        <Shield className="mr-2 h-4 w-4" />
-                        {role.name}
-                        {selectedRoleId === role.id && (
-                          <span className="ml-auto">✓</span>
-                        )}
-                      </CommandItem>
-                    ))
-                  ) : (
-                    <CommandEmpty>No roles available</CommandEmpty>
-                  )}
-                </CommandGroup>
-              </Command> */}
-              {/* // )} */}
+              ) : (
+                <Command className="rounded-lg border shadow-md">
+                  <CommandInput placeholder="Search roles..." />
+                  <CommandEmpty>No roles found.</CommandEmpty>
+                  <CommandGroup>
+                    {Array.isArray(roles) && roles.length > 0 ? (
+                      roles.map((role) => (
+                        <CommandItem
+                          key={role.id}
+                          onSelect={() => setSelectedRoleId(role.id)}
+                          className={cn(
+                            "cursor-pointer",
+                            selectedRoleId === role.id && "bg-primary/5"
+                          )}
+                        >
+                          <Shield className="mr-2 h-4 w-4" />
+                          {role.name}
+                          {selectedRoleId === role.id && (
+                            <span className="ml-auto">✓</span>
+                          )}
+                        </CommandItem>
+                      ))
+                    ) : (
+                      <CommandEmpty>No roles available</CommandEmpty>
+                    )}
+                  </CommandGroup>
+                </Command>
+              )}
               {/* <RoleSelector
                 selectedRoleId={selectedRoleId}
                 setSelectedRoleId={setSelectedRoleId}
