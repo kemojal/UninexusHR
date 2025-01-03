@@ -1003,7 +1003,7 @@ export default function OrganizationPage({
                   <div className="mt-4">
                     <Label htmlFor="confirm">
                       Please type{" "}
-                      <span className="font-medium">{organization?.name}</span>{" "}
+                      <span className="font-bold text-black">{organization?.name}</span>{" "}
                       to confirm
                     </Label>
                     <Input

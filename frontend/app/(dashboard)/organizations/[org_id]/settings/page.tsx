@@ -75,7 +75,7 @@ export default function OrgSettingsPage() {
     onSuccess: () => {
       toast.success("Organization deleted successfully");
       router.push("/organizations");
-      window.location.href = '/organizations';
+      window.location.href = "/organizations";
     },
     onError: () => {
       toast.error("Failed to delete organization");
@@ -221,8 +221,10 @@ export default function OrgSettingsPage() {
                     <div className="mt-4">
                       <Label htmlFor="confirm">
                         Please type{" "}
-                        <span className="font-medium">{org?.name}</span> to
-                        confirm
+                        <span className="font-bold text-black">
+                          {org?.name}
+                        </span>{" "}
+                        to confirm
                       </Label>
                       <Input
                         id="confirm"
