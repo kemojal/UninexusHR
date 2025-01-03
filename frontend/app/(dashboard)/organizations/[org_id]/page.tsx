@@ -951,10 +951,20 @@ export default function OrganizationPage({
   //   }
   // };
 
-  const handleResendInvitation = (invitationId) => {
-    // Logic to resend the invitation
-    console.log(`Resending invitation with ID: ${invitationId}`);
-    // You might want to call an API here to resend the invitation
+  const handleResendInvitation = async (invitationId) => {
+    try {
+      const response = await api.post(`/invitations/${invitationId}/resend`);
+      if (response.status === 200) {
+        console.log(`Invitation with ID ${invitationId} resent successfully.`);
+        // Optionally, show a success message to the user
+      } else {
+        console.error(`Failed to resend invitation: ${response.statusText}`);
+        // Optionally, show an error message to the user
+      }
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      // Optionally, show an error message to the user
+    }
   };
 
   if (isLoadingOrg) {
