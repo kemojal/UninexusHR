@@ -183,3 +183,10 @@
 2025-01-03 10:11:35,014 - app.main - INFO - Application startup complete
 2025-01-03 10:11:55,399 - app.main - INFO - Application startup complete
 2025-01-03 10:16:43,644 - app.main - INFO - Application startup complete
+2025-01-03 12:52:46,430 - app.main - INFO - Application startup complete
+2025-01-03 13:11:37,668 - app.utils.email - INFO - Preparing to send invitation email to nijis47218@nongnue.com for XDCxxxddHHHXX
+2025-01-03 13:11:37,669 - app.utils.email - INFO - Connecting to SMTP server smtp.gmail.com:587
+2025-01-03 13:11:38,248 - app.utils.email - INFO - Starting TLS
+2025-01-03 13:11:38,520 - app.utils.email - INFO - Logging in with user kemo3855@gmail.com
+2025-01-03 13:11:38,987 - app.utils.email - INFO - Sending email from kemo3855@gmail.com to nijis47218@nongnue.com
+2025-01-03 13:11:40,580 - app.utils.email - INFO - Email sent successfully

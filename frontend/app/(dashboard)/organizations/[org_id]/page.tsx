@@ -420,10 +420,12 @@ export default function OrganizationPage({
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
-  const [editPermissionDialogOpen, setEditPermissionDialogOpen] =
-    useState(false);
-  const [createPermissionDialogOpen, setCreatePermissionDialogOpen] =
-    useState(false);
+  const [editPermissionDialogOpen, setEditPermissionDialogOpen] = useState(
+    false
+  );
+  const [createPermissionDialogOpen, setCreatePermissionDialogOpen] = useState(
+    false
+  );
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [newRole, setNewRole] = useState({
@@ -509,10 +511,19 @@ export default function OrganizationPage({
   >({
     queryKey: ["roles", params.org_id],
     queryFn: async () => {
+      console.log("Fetching roles...");
       const response = await api.get(`/organizations/${params.org_id}/roles`);
+      console.log("API Response:", response.data);
       return response.data || []; // Ensure we return an empty array if data is undefined
     },
     enabled: !!params.org_id,
+    onSuccess: (data) => {
+      console.log("Updated roles state:", data);
+      setRoles(data);
+    },
+    onError: (error) => {
+      console.error("Error fetching roles:", error);
+    },
   });
 
   // Fetch invitations
@@ -911,7 +922,13 @@ export default function OrganizationPage({
   });
 
   useEffect(() => {
-    fetchRoles();
+    fetchRoles().then((response) => {
+      console.log("API Response:", response);
+      setRoles(response);
+      console.log("Updated roles state:", response);
+    }).catch((error) => {
+      console.error("Error fetching roles:", error);
+    });
   }, [params.org_id]);
 
   // const handleDeleteOrganization = async () => {
@@ -1185,6 +1202,11 @@ export default function OrganizationPage({
                     ) : (
                       <SelectItem value="none">No roles available</SelectItem>
                     )}
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        hi
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -2017,32 +2039,18 @@ export default function OrganizationPage({
                   <div className="animate-spin">◌</div>
                 </div>
               ) : (
-                <Command className="rounded-lg border shadow-md">
-                  <CommandInput placeholder="Search roles..." />
-                  <CommandEmpty>No roles found.</CommandEmpty>
-                  <CommandGroup>
-                    {Array.isArray(roles) && roles.length > 0 ? (
-                      roles.map((role) => (
-                        <CommandItem
-                          key={role.id}
-                          onSelect={() => setSelectedRoleId(role.id)}
-                          className={cn(
-                            "cursor-pointer",
-                            selectedRoleId === role.id && "bg-primary/5"
-                          )}
-                        >
-                          <Shield className="mr-2 h-4 w-4" />
-                          {role.name}
-                          {selectedRoleId === role.id && (
-                            <span className="ml-auto">✓</span>
-                          )}
-                        </CommandItem>
-                      ))
-                    ) : (
-                      <CommandEmpty>No roles available</CommandEmpty>
-                    )}
-                  </CommandGroup>
-                </Command>
+                <select
+                  value={selectedRoleId || ''}
+                  onChange={(e) => setSelectedRoleId(e.target.value)}
+                  className="rounded-lg border shadow-md"
+                >
+                  <option value="" disabled>Select a role...</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
               )}
               {/* <RoleSelector
                 selectedRoleId={selectedRoleId}
