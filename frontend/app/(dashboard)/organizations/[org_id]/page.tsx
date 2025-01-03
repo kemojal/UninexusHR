@@ -420,12 +420,10 @@ export default function OrganizationPage({
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
-  const [editPermissionDialogOpen, setEditPermissionDialogOpen] = useState(
-    false
-  );
-  const [createPermissionDialogOpen, setCreatePermissionDialogOpen] = useState(
-    false
-  );
+  const [editPermissionDialogOpen, setEditPermissionDialogOpen] =
+    useState(false);
+  const [createPermissionDialogOpen, setCreatePermissionDialogOpen] =
+    useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [newRole, setNewRole] = useState({
@@ -922,13 +920,15 @@ export default function OrganizationPage({
   });
 
   useEffect(() => {
-    fetchRoles().then((response) => {
-      console.log("API Response:", response);
-      setRoles(response);
-      console.log("Updated roles state:", response);
-    }).catch((error) => {
-      console.error("Error fetching roles:", error);
-    });
+    fetchRoles()
+      .then((response) => {
+        console.log("API Response:", response);
+        setRoles(response);
+        console.log("Updated roles state:", response);
+      })
+      .catch((error) => {
+        console.error("Error fetching roles:", error);
+      });
   }, [params.org_id]);
 
   // const handleDeleteOrganization = async () => {
@@ -950,6 +950,12 @@ export default function OrganizationPage({
   //     }
   //   }
   // };
+
+  const handleResendInvitation = (invitationId) => {
+    // Logic to resend the invitation
+    console.log(`Resending invitation with ID: ${invitationId}`);
+    // You might want to call an API here to resend the invitation
+  };
 
   if (isLoadingOrg) {
     return (
@@ -2040,11 +2046,13 @@ export default function OrganizationPage({
                 </div>
               ) : (
                 <select
-                  value={selectedRoleId || ''}
+                  value={selectedRoleId || ""}
                   onChange={(e) => setSelectedRoleId(e.target.value)}
                   className="rounded-lg border shadow-md"
                 >
-                  <option value="" disabled>Select a role...</option>
+                  <option value="" disabled>
+                    Select a role...
+                  </option>
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.name}
