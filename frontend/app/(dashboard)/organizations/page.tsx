@@ -76,6 +76,8 @@ export default function OrganizationsPage() {
 
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
+  const isAdmin = true; // Replace with actual logic to determine if user is admin
+
   const { data: organizations = [], isLoading } = useQuery<Organization[]>({
     queryKey: ["organizations"],
     queryFn: async () => {
@@ -233,61 +235,18 @@ export default function OrganizationsPage() {
                           <Users2 className="mr-2 h-4 w-4" />
                           Members
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditOrg(org)}>
-                          <Settings2 className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              className="gap-2 bg-transparent text-red-500 hover:bg-red-500/90 hover:text-white h-8 gap-4 w-full align-start justify-start px-2"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Are you absolutely sure?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will
-                                permanently delete the organization and remove
-                                all associated data.
-                                <div className="mt-4">
-                                  <Label htmlFor="confirm">
-                                    Please type{" "}
-                                    <span className="font-bold text-black">
-                                      {org?.name}
-                                    </span>{" "}
-                                    to confirm
-                                  </Label>
-                                  <Input
-                                    id="confirm"
-                                    value={deleteConfirmation}
-                                    onChange={(e) =>
-                                      setDeleteConfirmation(e.target.value)
-                                    }
-                                    placeholder="Enter organization name"
-                                    className="mt-2"
-                                  />
-                                </div>
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteOrg(org)}
-                                disabled={deleteMutation.isPending}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {isAdmin && (
+                          <DropdownMenuItem onClick={() => handleEditOrg(org)}>
+                            <Settings2 className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {isAdmin && (
+                          <DropdownMenuItem onClick={() => handleDeleteOrg(org)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

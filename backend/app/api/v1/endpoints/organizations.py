@@ -50,12 +50,25 @@ def create_organization(
     organization = crud.crud_organization.create(db=db, obj_in=organization_in)
     
     # Add the user to the user_roles table
-    user_role = crud.crud_organization.add_user_with_role(
+    # user_role = crud.crud_organization.add_user_with_role(
+    #     db=db,
+    #     org_id=organization.id,
+    #     user_id=current_user.id,
+    #     role="admin"  # Use role name instead of ID
+    # )
+    # crud.crud_organization.add_user_to_organization(
+    #     db=db,
+    #     user_id=current_user.id,
+    #     organization_id=organization.id,
+    #     role_id=6  # Admin role ID
+    # )
+    crud.crud_organization.add_user_to_organization(
         db=db,
-        org_id=organization.id,
         user_id=current_user.id,
-        role="admin"  # Use role name instead of ID
+        organization_id=organization.id,
     )
+
+
     
     return organization
 

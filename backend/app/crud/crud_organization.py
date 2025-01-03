@@ -7,7 +7,10 @@ from app.models.join_request import JoinRequest
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate
 from app.models.user_organization import UserOrganization
 from app.models.role import Role
-from app.models import user_roles
+from app.models.permission import Permission
+
+from app.models import user_roles, role_permissions
+from sqlalchemy import and_
 
 class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationUpdate]):
     def get_by_name(self, db: Session, *, name: str) -> Optional[Organization]:
@@ -99,5 +102,129 @@ class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationUp
             
         print(f"User {user_id} is not an admin for org {org_id}")
         return False
+
+    def add_user_with_role(
+        self, 
+        db: Session, 
+        *, 
+        org_id: int, 
+        user_id: int, 
+        role: str
+    ) -> Optional[UserOrganization]:
+        """Add a user to an organization with a specific role."""
+        try:
+            print(f"org_id type: {type(org_id)}, value: {org_id}")
+            # First, get or create the role
+            role_obj = (
+                db.query(Role)
+                .filter(
+                    and_(
+                        Role.organization_id == org_id,
+                        Role.name.ilike(f"%{role}%")
+                    )
+                )
+                .first()
+            )
+            
+            if not role_obj:
+                # Create the role if it doesn't exist
+                role_obj = Role(
+                    name=role,
+                    organization_id=org_id,
+                    permissions=["*"]  # Default admin permissions
+                )
+                db.add(role_obj)
+                db.flush()
+
+            # Add the user-role relationship
+            statement = user_roles.insert().values(
+                user_id=user_id,
+                role_id=role_obj.id,
+                organization_id=org_id
+            )
+            db.execute(statement)
+            
+            # Add user to organization if not already added
+            org = self.get(db=db, id=org_id)
+            user = db.query(User).filter(User.id == user_id).first()
+            if org and user and user not in org.users:
+                org.users.append(user)
+            
+            db.commit()
+            
+            return db.query(UserOrganization).filter(
+                and_(
+                    UserOrganization.user_id == user_id,
+                    UserOrganization.organization_id == org_id
+                )
+            ).first()
+        except Exception as e:
+            db.rollback()
+            print(f"Error in add_user_with_role: {str(e)}")
+            raise
+
+
+
+    # def add_user_to_organization(
+    #     self, db: Session, user_id: int, organization_id: int, role_id: int
+    # ) -> UserOrganization:
+    #     user_organization = UserOrganization(
+    #         user_id=user_id,
+    #         organization_id=organization_id,
+    #         role_id=role_id,
+    #     )
+    #     db.add(user_organization)
+    #     db.commit()
+    #     db.refresh(user_organization)
+    #     return user_organization
+    def add_user_to_organization(
+        self, db: Session, user_id: int, organization_id: int
+    ) -> UserOrganization:
+        """
+        Add a user to the organization as an admin. Dynamically creates an 'admin' role
+        for the organization, assigns all permissions to the role, and associates the user
+        with the role.
+        """
+        # Check if an admin role already exists for the organization
+        existing_role = db.query(Role).filter(
+            Role.name == "admin", Role.organization_id == organization_id
+        ).first()
+
+        if not existing_role:
+            # Create the admin role for the organization
+            admin_role = Role(
+                name="admin",
+                description="Organization administrator with full access",
+                organization_id=organization_id,
+            )
+            db.add(admin_role)
+            db.commit()
+            db.refresh(admin_role)
+
+            # Fetch all permission IDs from the permissions table
+            all_permissions = db.query(Permission.id).all()
+            for permission in all_permissions:
+                # Insert role-permission relationships into the table
+                db.execute(
+                    role_permissions.insert().values(
+                        role_id=admin_role.id,
+                        permission_id=permission.id,
+                    )
+                )
+            db.commit()
+        else:
+            admin_role = existing_role
+
+        # Add the user to the user_organization table with the admin role
+        user_organization = UserOrganization(
+            user_id=user_id,
+            organization_id=organization_id,
+            role_id=admin_role.id,
+        )
+        db.add(user_organization)
+        db.commit()
+        db.refresh(user_organization)
+
+        return user_organization
 
 crud_organization = CRUDOrganization(Organization)
