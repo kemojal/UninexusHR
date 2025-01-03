@@ -71,6 +71,8 @@ export default function OrganizationsPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [organization, setOrganization] = useState({ id: '', name: '', description: '' });
 
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
@@ -133,6 +135,31 @@ export default function OrganizationsPage() {
       return;
     }
     deleteMutation.mutate(organization.id);
+  };
+
+  const editMutation = useMutation({
+    mutationFn: async (data: { id: number; name: string; description: string }) => {
+      const response = await api.put(`/organizations/${data.id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      setIsEditDialogOpen(false);
+      // Re-fetch organizations and sort them
+      queryClient.setQueryData("organizations", (oldData) => {
+        return oldData.sort((a, b) => a.name.localeCompare(b.name));
+      });
+    },
+  });
+
+  const handleEdit = async (event) => {
+    event.preventDefault();
+    editMutation.mutate(organization);
+  };
+
+  const handleEditOrg = (organization: Organization) => {
+    setOrganization(organization);
+    setIsEditDialogOpen(true);
   };
 
   return (
@@ -205,6 +232,10 @@ export default function OrganizationsPage() {
                         >
                           <Users2 className="mr-2 h-4 w-4" />
                           Members
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditOrg(org)}>
+                          <Settings2 className="mr-2 h-4 w-4" />
+                          Edit
                         </DropdownMenuItem>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -347,6 +378,54 @@ export default function OrganizationsPage() {
                 Cancel
               </Button>
               <Button type="submit">Create Organization</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Organization Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Organization</DialogTitle>
+            <DialogDescription>
+              Edit your organization details.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEdit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Organization Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={organization.name}
+                  onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
+                  placeholder="Enter organization name"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  name="description"
+                  value={organization.description}
+                  onChange={(e) => setOrganization({ ...organization, description: e.target.value })}
+                  placeholder="Brief description of your organization"
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Edit Organization</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -77,7 +77,7 @@ def read_organization(
     return organization
 
 @router.put("/{organization_id}", response_model=Organization)
-def update_organization(
+async def edit_organization(
     *,
     db: Session = Depends(deps.get_db),
     organization_id: int,
