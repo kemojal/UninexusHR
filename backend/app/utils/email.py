@@ -17,7 +17,9 @@ def create_invitation_email(recipient_email: str, organization_name: str, token:
     msg['To'] = recipient_email
     
     # Create the correct invitation URL
-    invitation_url = f"http://localhost:3000/join?token={token}"
+    # invitation_url = f"http://localhost:3000/join?token={token}"
+    invitation_url = f"{settings.FRONTEND_URL}/join?token={token}"
+
     
     # HTML version of the email
     html = f"""
